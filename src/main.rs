@@ -16,12 +16,6 @@ use stm32l4x6::Peripherals;
 
 extern crate stm32l4x6;
 
-fn delay_busy(){
-    for i in 0..10000{
-
-    }
-        
-}
 
 #[entry]
 fn main() -> ! {
@@ -44,15 +38,48 @@ fn main() -> ! {
 
     let p = stm32l4x6::Peripherals::take().unwrap();
     let mut rcc =  p.RCC;
+
+    rcc.ahb2enr.modify(|r, w| w.gpioaen().set_bit());
+    rcc.ahb2enr.modify(|r, w| w.gpiocen().set_bit());
+    rcc.apb1enr1.modify(|r, w| w.tim7en().set_bit());
+
+    let mut tim7 = p.TIM7;
+
+    let psc = 0x7a; // 8M /65k ~= 121 
+    tim7.psc.write(|w| unsafe { w.psc().bits(psc) });
+    let arr = 0xA000;
+    tim7.arr.write(|w| unsafe { w.arr().bits(arr) });
+    tim7.cr1.write(|w| w.opm().clear_bit());
+
+
+
     let mut gpioa = p.GPIOA;
+    let mut gpioc = p.GPIOC;
     //RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN
-    rcc.ahb2enr.modify(|r, w| unsafe{ w.bits( 0x0000_0001 | r.bits() )});
     gpioa.moder.modify( |r, w| unsafe{w.bits( 0x5555 | r.bits()& 0xFFFF_0000)} );
+    gpioc.moder.modify( |_, w| unsafe{w.moder13().bits(0)} );
 
-
+    let mut state = false;
     loop {
-        // your code goes here
-        gpioa.odr.write(|w| unsafe {w.bits(0xFFFF)} );
-        gpioa.odr.write(|w| unsafe {w.bits(0x0000)} );
+/*         // Wait for an update event
+        while !tim7.sr.read().uif().bit() {}
+
+        // Clear the update event flag
+         tim7.sr.modify(|_, w| w.uif().clear_bit());
+       */
+        while gpioc.idr.read().idr13().bit() {
+            
+        } 
+        while ! gpioc.idr.read().idr13().bit() {
+            
+        } 
+        // Toggle the state
+        state = !state;
+
+        if state {
+            gpioa.odr.write(|w| unsafe {w.bits(0xFFFF)} );
+        }else{
+            gpioa.odr.write(|w| unsafe {w.bits(0x0000)} );
+        }
     }
 }
