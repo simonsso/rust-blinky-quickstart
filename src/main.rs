@@ -11,10 +11,10 @@ use cortex_m::peripheral::syst::SystClkSource;
 use cortex_m::peripheral::*;
 use cortex_m_rt::entry;
 use cortex_m_semihosting::hprint;
-use stm32l4x6::{interrupt, Interrupt};
-use stm32l4x6::Peripherals;
+use stm32l476rg::{interrupt, Interrupt};
+use stm32l476rg::Peripherals;
 
-extern crate stm32l4x6;
+extern crate stm32l476rg;
 
 
 #[entry]
@@ -36,7 +36,7 @@ fn main() -> ! {
     let mut syst = p.SYST;
     let mut nvic = p.NVIC;
 
-    let p = stm32l4x6::Peripherals::take().unwrap();
+    let p = stm32l476rg::Peripherals::take().unwrap();
     let mut rcc =  p.RCC;
 
     rcc.ahb2enr.modify(|r, w| w.gpioaen().set_bit());

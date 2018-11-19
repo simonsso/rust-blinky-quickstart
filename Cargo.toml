@@ -19,13 +19,13 @@ embedded-hal = "0.2.2"
 # Uncomment for the allocator example.
 # alloc-cortex-m = "0.3.5"
 
-[dependencies.stm32l4x6]
-features = ["rt"]
-path = "/home/simson/rustlib/stm32l4x6"
-
-# [dependencies.stm32l476rg]
+# [dependencies.stm32l4x6]
 # features = ["rt"]
-# path = "../../baremetal/stm32l476rg"
+# path = "/home/simson/rustlib/stm32l4x6"
+
+[dependencies.stm32l476rg]
+## features = ["rt"]
+path = "../../baremetal/stm32l476rg"
 
 [dependencies.stm32l4x6-hal]
 features = ["rt"]
