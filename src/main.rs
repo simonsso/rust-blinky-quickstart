@@ -9,7 +9,9 @@ extern crate panic_halt; // you can put a breakpoint on `rust_begin_unwind` to c
 // extern crate panic_semihosting; // logs messages to the host stderr; requires a debugger
 extern crate stm32l4x6;
 extern crate stm32l4x6_hal;
+
 #[macro_use(block)]
+
 extern crate nb;
 
 use cortex_m_rt::entry;
@@ -29,6 +31,8 @@ use stm32l4x6::TIM6;
 
 use stm32l4x6_hal::common::Constrain;
 use embedded_hal::timer::{Periodic,CountDown};
+use embedded_hal::blocking::spi::Transfer;
+use cortex_m::asm::delay;
 
 #[entry]
 
@@ -50,9 +54,11 @@ fn main() -> ! {
     let mut gpioa = gpio::A::new(&mut rcc.ahb);
     let mut gpioc = gpio::C::new(&mut rcc.ahb);
 
-    let mut led:  PA5<gpio::Output<gpio::PushPull>> = gpioa.PA5.into_output(&mut gpioa.moder, &mut gpioa.otyper);
+
+    let mut timer: Timer<TIM6> = stm32l4x6_hal::timer::Timer::tim6(p.TIM6,Hertz(20), spiclocks, &mut rcc.apb1);
 
 /*  Added a blinky section here
+    let mut led:  PA5<gpio::Output<gpio::PushPull>> = gpioa.PA5.into_output(&mut gpioa.moder, &mut gpioa.otyper);
     // TMR6 basic timer stm32l4x6::rcc::apb1enr1 | apb1rstr1
     let mut timer: Timer<TIM6> = stm32l4x6_hal::timer::Timer::tim6(p.TIM6,Hertz(20), spiclocks, &mut rcc.apb1);
 
@@ -74,7 +80,7 @@ fn main() -> ! {
     let spimiso:PA6<gpio::AF5> = gpioa.PA6.into_alt_fun(&mut gpioa.moder, &mut gpioa.afrl);
     let spimosi:PA7<gpio::AF5> = gpioa.PA7.into_alt_fun(&mut gpioa.moder, &mut gpioa.afrl);
 
-    let spifreq= stm32l4x6_hal::time::Hertz(5_000_000);
+    let spifreq= stm32l4x6_hal::time::Hertz(2_000_000);
 
 
  
@@ -84,6 +90,7 @@ fn main() -> ! {
     let     spi_irq:   PA4<gpio::Input<gpio::Floating>> =  gpioa.PA4.into_input(&mut gpioa.moder, &mut gpioa.pupdr);
     let mut spi_reset: PA10<gpio::Output<gpio::PushPull>> = gpioa.PA10.into_output(&mut gpioa.moder, &mut gpioa.otyper);
     let mut spi_cs:    PA9<gpio::Output<gpio::PushPull>> =  gpioa.PA9.into_output(&mut gpioa.moder, &mut gpioa.otyper);
+    spi_cs.set_high();
 
 
 
@@ -91,22 +98,46 @@ fn main() -> ! {
 
  use stm32l4x6_hal::embedded_hal::spi::FullDuplex;
 
-    loop {
-        spi_cs.set_low();
-        spi.send(0xFC as u8);
-        spi.send(0x0 as u8); 
-        spi.send(0x0 as u8); 
 
-        buf[0]=spi.read().ok().unwrap();
-        buf[1]=spi.read().ok().unwrap();       
-        buf[2]=spi.read().ok().unwrap();
+    spi_reset.set_low();
+    delay(1000);
+    spi_reset.set_high();
+    delay(1000);
+    spi_cs.set_low();
+
+    
+    loop {
+        if spi_irq.is_low(){
+            block!(spi.send(0xF8 as u8));
+        }
+        if spi_irq.is_high(){
+            block!(spi.send(0x1C as u8));
+            block!(spi.send(0x0 as u8)); 
+        }
+
+
+/*
+        let ans=block!(spi.read());
+        match ans {
+            Ok(t) => {
+                buf[0]=t;
+            }
+            Err(_) => {
+                while true{
+                    //trap here
+                }
+            }
+        }
+*/
 
          use embedded_hal::digital::InputPin;
          //Read button for press and release
-         while btn1.is_low(){
+         while spi_irq.is_high(){
+            delay(100);
             ;
          }
-         while !btn1.is_low(){
+         while spi_irq.is_low(){
+            delay(100);
             ;
          }
     }
