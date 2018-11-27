@@ -102,35 +102,48 @@ fn main() -> ! {
     spi_reset.set_low();
     delay(1000);
     spi_reset.set_high();
-    delay(1000);
-    spi_cs.set_low();
+    use embedded_hal::digital::InputPin;
+    while spi_irq.is_low(){
+         delay(100);
+    }
 
     
     loop {
-        if spi_irq.is_low(){
-            block!(spi.send(0xF8 as u8));
-        }
-        if spi_irq.is_high(){
-            block!(spi.send(0x1C as u8));
-            block!(spi.send(0x0 as u8)); 
-        }
+       spi_cs.set_low();
+       if spi_irq.is_low(){
+            spi.send(0xF8 as u8);
+       }
+       if spi_irq.is_high(){
+           spi.send(0x1C as u8);
+           spi.send(0x0 as u8); 
+           let ans=block!(spi.read());
+           match ans {
+               Ok(t) => {
+                   buf[0]=t;
+               }
+               Err(_) => {
+                   while true{
+                       //trap here
+                   }
+               }
+           }
+           let ans=block!(spi.read());
+           match ans {
+               Ok(t) => {
+                   buf[1]=t;
+               }
+               Err(_) => {
+                   while true{
+                       //trap here
+                   }
+               }
+           }
+       }
+       spi_cs.set_high();
+
 
 
 /*
-        let ans=block!(spi.read());
-        match ans {
-            Ok(t) => {
-                buf[0]=t;
-            }
-            Err(_) => {
-                while true{
-                    //trap here
-                }
-            }
-        }
-*/
-
-         use embedded_hal::digital::InputPin;
          //Read button for press and release
          while spi_irq.is_high(){
             delay(100);
@@ -140,5 +153,6 @@ fn main() -> ! {
             delay(100);
             ;
          }
+*/
     }
 }
