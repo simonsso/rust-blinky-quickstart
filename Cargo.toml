@@ -21,9 +21,9 @@ version = "0.2"
 
 [dependencies.stm32l4x6-hal]
 features = ["rt"]
-#git = "https://github.com/simonsso/stm32l4x6_hal.git"
+git = "https://github.com/simonsso/stm32l4x6_hal.git"
 #path = "/home/simson/rustlib/stm32l4x6_hal"
-path = "../stm32l4x6_hal"
+#path = "../stm32l4x6_hal"
 
 
 # this lets you use `cargo fix`!

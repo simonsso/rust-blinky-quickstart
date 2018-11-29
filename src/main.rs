@@ -11,7 +11,6 @@ extern crate alloc;
 //extern crate alloc_cortex_m;
 use core::alloc::Layout;
 
-#[macro_use]
 extern crate cortex_m_rt as rt; // v0.5.x
 
 use alloc::vec::Vec;
@@ -46,15 +45,10 @@ use stm32l4x6_hal::time::{MegaHertz,Hertz};
 use stm32l4x6_hal::timer::*;
 use stm32l4x6_hal::*;
 use embedded_hal as hal;
-use embedded_hal::spi::{FullDuplex, Mode, Phase, Polarity};
-
 
 use stm32l4x6::TIM6;
 
-
 use stm32l4x6_hal::common::Constrain;
-use embedded_hal::timer::{Periodic,CountDown};
-use embedded_hal::blocking::spi::Transfer;
 use cortex_m::asm::delay;
 
 
@@ -64,30 +58,21 @@ where
 {   
     let mut readdata: Vec<u8> = Vec::with_capacity(l as usize);
     for _i in 0..l {
-       spi.send(0x00); 
+       let _ans=spi.send(0x00);
+       //Todo handle Error here. 
+       
        let ans=block!(spi.read());
        match ans { 
           Ok(t) => {
              readdata.push(t);
           }
           Err(_) => {
-             while true{
+             loop{
                 //trap here
              }
           }
        }
     }
-    readdata.push(0x99);
-    readdata.push(0x99);
-    readdata.push(0x99);
-    readdata.push(0x99);
-    readdata.push(0x99);
-    readdata.push(0x99);
-    readdata.push(0x99);
-    readdata.push(0x99);
-    readdata.push(0x99);
-    readdata.push(0x99);
-    readdata.push(0x99);
     (spi,readdata)
 }
 
@@ -98,30 +83,20 @@ where
 {
     let mut readdata: Vec<u8> = Vec::with_capacity(v1.len());
     for elem in v1.iter() {
-       spi.send(*elem); 
+       let _ans=spi.send(*elem); 
+       //Todo handle error from _ans here
        let ans=block!(spi.read());
        match ans {
           Ok(t) => {
              readdata.push(t);
           }
           Err(_) => {
-             while true{
+             loop{
                 //trap here
              }
           }
        }
     }
-    readdata.push(0x98);
-    readdata.push(0x98);
-    readdata.push(0x98);
-    readdata.push(0x98);
-    readdata.push(0x98);
-    readdata.push(0x98);
-    readdata.push(0x98);
-    readdata.push(0x98);
-    readdata.push(0x98);
-    readdata.push(0x98);
-    readdata.push(0x98);
     (spi,readdata)
 }
 
@@ -132,11 +107,8 @@ fn main() -> ! {
     let p = stm32l4x6::Peripherals::take().unwrap();
     let mut rcc = p.RCC.constrain();
 
-    // Initialize the allocator BEFORE you use it
-    let start = rt::heap_start() as usize;
-    let size = 102400; // in bytes
-
-       // Use SRAM2 for heap ans SRAM1 for stack
+    // Use SRAM2 for heap ans SRAM1 for stack
+    // Todo use p this is hard coded from STM32L476RG memorymap
     unsafe { ALLOCATOR.init(0x1000_0000 as usize, 0x8000 as usize) }
 
     let mut flash = p.FLASH.constrain();
@@ -145,14 +117,14 @@ fn main() -> ! {
     
     let spiclocks = cfgr.freeze(&mut flash.acr);
 
-    let mut spi1 = p.SPI1;
+    let spi1 = p.SPI1;
 
 
     let mut gpioa = gpio::A::new(&mut rcc.ahb);
     let mut gpioc = gpio::C::new(&mut rcc.ahb);
 
 
-    let mut timer: Timer<TIM6> = stm32l4x6_hal::timer::Timer::tim6(p.TIM6,Hertz(20), spiclocks, &mut rcc.apb1);
+    let mut _timer: Timer<TIM6> = stm32l4x6_hal::timer::Timer::tim6(p.TIM6,Hertz(20), spiclocks, &mut rcc.apb1);
 
     let spiclk:PA5<gpio::AF5> = gpioa.PA5.into_alt_fun(&mut gpioa.moder, &mut gpioa.afrl);
     let spimiso:PA6<gpio::AF5> = gpioa.PA6.into_alt_fun(&mut gpioa.moder, &mut gpioa.afrl);
@@ -162,7 +134,7 @@ fn main() -> ! {
  
     let mut spi = spi::Spi::new(spi1,(spiclk,spimiso,spimosi),spifreq,embedded_hal::spi::MODE_0,&spiclocks,&mut rcc.apb2);
 
-    let     btn1:      PC13<gpio::Input<gpio::Floating>> = gpioc.PC13.into_input(&mut gpioc.moder, &mut gpioc.pupdr);
+    let     _btn1:      PC13<gpio::Input<gpio::Floating>> = gpioc.PC13.into_input(&mut gpioc.moder, &mut gpioc.pupdr);
     let     spi_irq:   PA4<gpio::Input<gpio::Floating>> =  gpioa.PA4.into_input(&mut gpioa.moder, &mut gpioa.pupdr);
     let mut spi_reset: PA10<gpio::Output<gpio::PushPull>> = gpioa.PA10.into_output(&mut gpioa.moder, &mut gpioa.otyper);
     let mut spi_cs:    PA9<gpio::Output<gpio::PushPull>> =  gpioa.PA9.into_output(&mut gpioa.moder, &mut gpioa.otyper);
@@ -180,7 +152,6 @@ fn main() -> ! {
        spi_cs.set_low();
        let ans = spitransmit(spi, [0x01,0x00,0x12,0x00,0x0c,0x00,0x01,0x00,0x01,0x00,0x02,0x40,0x02,0x00,0x09,0x10,0x00,0x00,0x07,0x00,0x00,0x00,0xb1,0x2e,0x45,0x93 ].to_vec());
        spi = ans.0;
-       let v = ans.1;
        spi_cs.set_high();
 
        while spi_irq.is_low(){
@@ -211,7 +182,7 @@ fn main() -> ! {
           spi_cs.set_low();
           let ans = spiread(spi,ans_c);
           spi = ans.0;
-          let v2 = ans.1;
+          let _v2 = ans.1;
           spi_cs.set_high(); 
        }
    }
