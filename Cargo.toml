@@ -19,11 +19,20 @@ stm32l4x6 = "0.5.1"
 features = ["unproven"]
 version = "0.2"
 
+[dependencies.bmlite]
+path = "/home/simson/work/work48"
+
 [dependencies.stm32l4x6-hal]
 features = ["rt"]
-git = "https://github.com/simonsso/stm32l4x6_hal.git"
-#path = "/home/simson/rustlib/stm32l4x6_hal"
+#git = "https://github.com/simonsso/stm32l4x6_hal.git"
+path = "/home/simson/rustlib/stm32l4x6_hal"
 #path = "../stm32l4x6_hal"
+
+
+[dependencies.crc]
+version = "^1.0.0"
+default-features = false
+
 
 
 # this lets you use `cargo fix`!

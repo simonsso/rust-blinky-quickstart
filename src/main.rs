@@ -28,6 +28,8 @@ extern crate panic_halt; // you can put a breakpoint on `rust_begin_unwind` to c
 // extern crate panic_semihosting; // logs messages to the host stderr; requires a debugger
 extern crate stm32l4x6;
 extern crate stm32l4x6_hal;
+extern crate bmlite;
+use bmlite::*;
 
 #[macro_use(block)]
 
@@ -52,54 +54,6 @@ use stm32l4x6::TIM6;
 use stm32l4x6_hal::common::Constrain;
 use cortex_m::asm::delay;
 
-
-fn spiread<S> (mut spi: S  ,l:u32) -> (S,Vec<u8>)
-where
-    S: hal::spi::FullDuplex<u8>,
-{
-    let mut readdata: Vec<u8> = Vec::with_capacity(l as usize);
-    for _i in 0..l {
-       let _ans=spi.send(0x00);
-       //Todo handle Error here.
-
-       let ans=block!(spi.read());
-       match ans {
-          Ok(t) => {
-             readdata.push(t);
-          }
-          Err(_) => {
-             loop{
-                //trap here
-             }
-          }
-       }
-    }
-    (spi,readdata)
-}
-
-
-fn spitransmit<S> (mut spi: S  , v1:Vec<u8>) -> (S,Vec<u8>)
-where
-    S: hal::spi::FullDuplex<u8>,
-{
-    let mut readdata: Vec<u8> = Vec::with_capacity(v1.len());
-    for elem in v1.iter() {
-       let _ans=spi.send(*elem);
-       //Todo handle error from _ans here
-       let ans=block!(spi.read());
-       match ans {
-          Ok(t) => {
-             readdata.push(t);
-          }
-          Err(_) => {
-             loop{
-                //trap here
-             }
-          }
-       }
-    }
-    (spi,readdata)
-}
 
 
 #[entry]
@@ -133,7 +87,7 @@ fn main() -> ! {
 
     let spifreq= stm32l4x6_hal::time::Hertz(2_000_000);
 
-    let mut spi = spi::Spi::new(spi1,(spiclk,spimiso,spimosi),spifreq,embedded_hal::spi::MODE_0,&spiclocks,&mut rcc.apb2);
+    let     spi = spi::Spi::new(spi1,(spiclk,spimiso,spimosi),spifreq,embedded_hal::spi::MODE_0,&spiclocks,&mut rcc.apb2);
 
     let     _btn1:      PC13<gpio::Input<gpio::Floating>> = gpioc.PC13.into_input(&mut gpioc.moder, &mut gpioc.pupdr);
     let     spi_irq:   PA4<gpio::Input<gpio::Floating>> =  gpioa.PA4.into_input(&mut gpioa.moder, &mut gpioa.pupdr);
@@ -143,51 +97,23 @@ fn main() -> ! {
     spi_reset.set_high();
 
 
-
     use embedded_hal::digital::InputPin;
-    spi_reset.set_low();
-    delay(1000);
-    spi_reset.set_high();
+//  spi_reset.set_low();
+//  delay(1000);
+//   spi_reset.set_high();
+//   delay(1000);
+
+    let mut bm = BmLite::new(spi,spi_cs,spi_reset,spi_irq);
+    bm.reset();
+
 
     loop {
-       spi_cs.set_low();
-       let mut vec=[0x01,0x00,0x12,0x00,0x0c,0x00,0x01,0x00,0x01,0x00,0x02,0x40,0x02,0x00,0x09,0x10,0x00,0x00,0x07,0x00,0x00,0x00,0xb1,0x2e,0x45,0x93 ];
-       let ans = spi.transfer( &mut vec);
-
-       spi_cs.set_high();
-
-       while spi_irq.is_low(){
-       }
-       spi_cs.set_low();
-       let ans = spiread(spi,4);
-       spi = ans.0;
-       let v0 = ans.1;
-       spi_cs.set_high();
-
-       // expect magic 7f ff 01 7f
-       if ! (v0[0] == 0x7f && v0[1] == 0xff && v0[2] == 0x01 && v0[3] == 0x7f ) {
-         //handle error here
-       }
-       while spi_irq.is_low(){
-       }
-       spi_cs.set_low();
-       let ans = spiread(spi,4);
-       spi = ans.0;
-       let v1 = ans.1;
-       spi_cs.set_high();
-       let ans_c:u32 = v1[2] as u32;
-       if ans_c >0 && ans_c <256 {
-         // todo add add better check for this package
-
-         while spi_irq.is_low(){
-         }
-          spi_cs.set_low();
-          let ans = spiread(spi,ans_c);
-          spi = ans.0;
-          let _v2 = ans.1;
-          spi_cs.set_high();
-       }
-   }
+        let ans = bm.delete_all();
+        match ans {
+            Ok(_) => {},
+            Err(_) => loop{},
+        }
+    }
 }
 // required: define how Out Of Memory (OOM) conditions should be handled
 // *if* no other crate has already defined `oom`
