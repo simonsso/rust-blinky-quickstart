@@ -39,7 +39,7 @@ use cortex_m_rt::entry;
 // use cortex_m_semihosting::hprint;
 
 use stm32l4x6_hal::gpio;
-use stm32l4x6_hal::gpio::{PA5,PC13,PA6,PA7,PA4,PA10,PA9};
+use stm32l4x6_hal::gpio::*;
 use stm32l4x6_hal::spi;
 use stm32l4x6_hal::embedded_hal::digital::OutputPin;
 use stm32l4x6_hal::rcc::clocking;
@@ -80,6 +80,10 @@ fn main() -> ! {
 
 
     let mut _timer: Timer<TIM6> = stm32l4x6_hal::timer::Timer::tim6(p.TIM6,Hertz(20), spiclocks, &mut rcc.apb1);
+    let mut led0_red: PA0<gpio::Output<gpio::PushPull>> = gpioa.PA0.into_output(&mut gpioa.moder, &mut gpioa.otyper);
+    let mut led1_red: PA1<gpio::Output<gpio::PushPull>> = gpioa.PA1.into_output(&mut gpioa.moder, &mut gpioa.otyper);
+    let mut led2_green: PC1<gpio::Output<gpio::PushPull>> = gpioc.PC1.into_output(&mut gpioc.moder, &mut gpioc.otyper);
+    let mut led3_green: PC0<gpio::Output<gpio::PushPull>> = gpioc.PC0.into_output(&mut gpioc.moder, &mut gpioc.otyper);
 
     let spiclk:PA5<gpio::AF5> = gpioa.PA5.into_alt_fun(&mut gpioa.moder, &mut gpioa.afrl);
     let spimiso:PA6<gpio::AF5> = gpioa.PA6.into_alt_fun(&mut gpioa.moder, &mut gpioa.afrl);
@@ -89,7 +93,7 @@ fn main() -> ! {
 
     let     spi = spi::Spi::new(spi1,(spiclk,spimiso,spimosi),spifreq,embedded_hal::spi::MODE_0,&spiclocks,&mut rcc.apb2);
 
-    let     _btn1:      PC13<gpio::Input<gpio::Floating>> = gpioc.PC13.into_input(&mut gpioc.moder, &mut gpioc.pupdr);
+    let     btn1:      PC13<gpio::Input<gpio::Floating>> = gpioc.PC13.into_input(&mut gpioc.moder, &mut gpioc.pupdr);
     let     spi_irq:   PA4<gpio::Input<gpio::Floating>> =  gpioa.PA4.into_input(&mut gpioa.moder, &mut gpioa.pupdr);
     let mut spi_reset: PA10<gpio::Output<gpio::PushPull>> = gpioa.PA10.into_output(&mut gpioa.moder, &mut gpioa.otyper);
     let mut spi_cs:    PA9<gpio::Output<gpio::PushPull>> =  gpioa.PA9.into_output(&mut gpioa.moder, &mut gpioa.otyper);
@@ -98,20 +102,77 @@ fn main() -> ! {
 
 
     use embedded_hal::digital::InputPin;
-//  spi_reset.set_low();
-//  delay(1000);
-//   spi_reset.set_high();
-//   delay(1000);
+   spi_reset.set_low();
+   delay(1000);
+   spi_reset.set_high();
+   delay(1000);
 
     let mut bm = BmLite::new(spi,spi_cs,spi_reset,spi_irq);
-    bm.reset();
-
+//    bm.reset();
+    led0_red.set_high();
+    led1_red.set_high();
+    led2_green.set_high();
+    led3_green.set_high();
+    led0_red.set_low();
+    led1_red.set_low();
+    led2_green.set_low();
+    led3_green.set_low();
 
     loop {
-        let ans = bm.delete_all();
+        let ans = bm.capture(0);
         match ans {
             Ok(_) => {},
-            Err(_) => loop{},
+            Err(_) => loop{
+                led1_red.set_high();
+            },
+        } // The user interface touch the sensor and btn at the same time to ensoll
+          // Extreemly secure
+        if btn1.is_low(){
+                led0_red.set_high();
+                led1_red.set_high();
+                led2_green.set_high();
+                led3_green.set_high();
+                let ans = bm.enroll();
+                match ans {
+                    Ok(_) => {
+                        led0_red.set_low();
+                        led1_red.set_low();
+                        led2_green.set_low();
+                        led3_green.set_low();
+                        led3_green.set_high();
+                    },
+                    Err(_) => loop{
+                        led0_red.set_low();
+                        led1_red.set_low();
+                        led2_green.set_low();
+                        led3_green.set_low();
+                        led0_red.set_high();
+                        led1_red.set_high();
+                    },
+                }
+        }else{
+            led0_red.set_low();
+            led1_red.set_low();
+            led2_green.set_low();
+            led3_green.set_low();
+            let ans= bm.do_extract();
+                match ans {
+                    Ok(_) => {
+                        let ans= bm.do_identify();
+                        match ans {
+                            Ok(id) => {
+                                match id{
+                                    0 => {led2_green.set_high()}
+                                    1 => {led3_green.set_high()}
+                                    2 => {led3_green.set_high();led2_green.set_high()}
+                                    others => {}
+                                 }
+                            }
+                            Err(_) => {}
+                        }
+                    }
+                    Err(_) => {}
+                }
         }
     }
 }

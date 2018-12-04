@@ -21,6 +21,7 @@ version = "0.2"
 
 [dependencies.bmlite]
 path = "/home/simson/work/work48"
+default-features = false
 
 [dependencies.stm32l4x6-hal]
 features = ["rt"]
@@ -45,3 +46,7 @@ bench = false
 codegen-units = 1 # better optimizations
 debug = true # symbols are nice and they don't increase the size on Flash
 lto = true # better optimizations
+
+## [profile.dev]
+## codegen-units = 1 # better optimizations
+## debug = true # symbols are nice and they don't increase the size on Flash
