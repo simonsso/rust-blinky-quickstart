@@ -13,7 +13,7 @@ use core::alloc::Layout;
 
 extern crate cortex_m_rt as rt; // v0.5.x
 
-use alloc::vec::Vec;
+// use alloc::vec::Vec;
 use alloc_cortex_m::CortexMHeap;
 
 #[global_allocator]
@@ -31,12 +31,10 @@ extern crate stm32l4x6_hal;
 extern crate bmlite;
 use bmlite::*;
 
-#[macro_use(block)]
 
 extern crate nb;
 
 use cortex_m_rt::entry;
-// use cortex_m_semihosting::hprint;
 
 use stm32l4x6_hal::gpio;
 use stm32l4x6_hal::gpio::*;
@@ -46,8 +44,6 @@ use stm32l4x6_hal::rcc::clocking;
 use stm32l4x6_hal::time::{MegaHertz,Hertz};
 use stm32l4x6_hal::timer::*;
 use stm32l4x6_hal::*;
-use embedded_hal as hal;
-use embedded_hal::blocking::spi::Transfer;
 
 use stm32l4x6::TIM6;
 
@@ -102,13 +98,9 @@ fn main() -> ! {
 
 
     use embedded_hal::digital::InputPin;
-   spi_reset.set_low();
-   delay(1000);
-   spi_reset.set_high();
-   delay(1000);
 
     let mut bm = BmLite::new(spi,spi_cs,spi_reset,spi_irq);
-//    bm.reset();
+    let _ans = bm.reset();
     led0_red.set_high();
     led1_red.set_high();
     led2_green.set_high();
@@ -122,8 +114,9 @@ fn main() -> ! {
         let ans = bm.capture(0);
         match ans {
             Ok(_) => {},
-            Err(_) => loop{
+            Err(_) => {
                 led1_red.set_high();
+                let _ans = bm.reset();
             },
         } // The user interface touch the sensor and btn at the same time to ensoll
           // Extreemly secure
@@ -132,6 +125,7 @@ fn main() -> ! {
                 led1_red.set_high();
                 led2_green.set_high();
                 led3_green.set_high();
+                // let _ans = bm.delete_all();
                 let ans = bm.enroll();
                 match ans {
                     Ok(_) => {
@@ -155,24 +149,20 @@ fn main() -> ! {
             led1_red.set_low();
             led2_green.set_low();
             led3_green.set_low();
-            let ans= bm.do_extract();
-                match ans {
-                    Ok(_) => {
-                        let ans= bm.do_identify();
-                        match ans {
-                            Ok(id) => {
-                                match id{
-                                    0 => {led2_green.set_high()}
-                                    1 => {led3_green.set_high()}
-                                    2 => {led3_green.set_high();led2_green.set_high()}
-                                    others => {}
-                                 }
-                            }
-                            Err(_) => {}
-                        }
-                    }
-                    Err(_) => {}
+            let ans= bm.identify();
+            match ans {
+                Ok(id) => {
+                    match id{
+                        0 => {led2_green.set_high()}
+                        1 => {led3_green.set_high()}
+                        2 => {led3_green.set_high();led2_green.set_high()}
+                        _ => {}
+                     }
+                     delay(5000000);
                 }
+                Err(bmlite::Error::NoMatch) => {led0_red.set_high()}
+                Err(_) => {let _ans=bm.reset();}
+            }
         }
     }
 }
