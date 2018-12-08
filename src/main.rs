@@ -26,8 +26,7 @@ extern crate panic_halt; // you can put a breakpoint on `rust_begin_unwind` to c
 // extern crate panic_abort; // requires nightly
 // extern crate panic_itm; // logs messages over ITM; requires ITM support
 // extern crate panic_semihosting; // logs messages to the host stderr; requires a debugger
-extern crate stm32l4x6;
-extern crate stm32l4x6_hal;
+extern crate nrf52832_hal;
 extern crate bmlite;
 use bmlite::*;
 
@@ -36,18 +35,23 @@ extern crate nb;
 
 use cortex_m_rt::entry;
 
-use stm32l4x6_hal::gpio;
-use stm32l4x6_hal::gpio::*;
-use stm32l4x6_hal::spi;
-use stm32l4x6_hal::embedded_hal::digital::OutputPin;
-use stm32l4x6_hal::rcc::clocking;
-use stm32l4x6_hal::time::{MegaHertz,Hertz};
-use stm32l4x6_hal::timer::*;
-use stm32l4x6_hal::*;
+use nrf52832_hal::gpio::*;
+use nrf52832_hal::gpio::Level;
+use nrf52832_hal::gpio::p0::*;
+use nrf52832_hal::prelude::GpioExt;
+use nrf52832_hal::prelude::SpimExt;
+use embedded_hal::digital::{InputPin,OutputPin};
 
-use stm32l4x6::TIM6;
+// use nrf52_hal::spi;
+// use nrf52_hal::embedded_hal::digital::OutputPin;
+// use nrf52_hal::rcc::clocking;
+// use nrf52_hal::time::{MegaHertz,Hertz};
+// use nrf52_hal::timer::*;
+use nrf52832_hal::*;
 
-use stm32l4x6_hal::common::Constrain;
+// use nrf52::TIM6;
+
+// use nrf52_hal::common::Constrain;
 use cortex_m::asm::delay;
 
 
@@ -55,50 +59,97 @@ use cortex_m::asm::delay;
 #[entry]
 fn main() -> ! {
 
-    let p = stm32l4x6::Peripherals::take().unwrap();
-    let mut rcc = p.RCC.constrain();
+    let p = nrf52832_hal::nrf52832_pac::Peripherals::take().unwrap();
+//    let mut rcc = p.RCC.constrain();
+    let mut port0 = p.P0.split();
 
     // Use SRAM2 for heap ans SRAM1 for stack
     // Todo use p this is hard coded from STM32L476RG memorymap
-    unsafe { ALLOCATOR.init(0x1000_0000 as usize, 0x8000 as usize) }
-
-    let mut flash = p.FLASH.constrain();
-
-    let cfgr = rcc.cfgr.sysclk(clocking::SysClkSource::MSI(clocking::MediumSpeedInternalRC::new(32_000_000, false))).hclk(MegaHertz(32)).pclk1(MegaHertz(32)).pclk2(MegaHertz(32));
-
-    let spiclocks = cfgr.freeze(&mut flash.acr);
-
-    let spi1 = p.SPI1;
+//    unsafe { ALLOCATOR.init(0x1000_0000 as usize, 0x8000 as usize) }
+//    let mut flash = p.FLASH.constrain();
 
 
-    let mut gpioa = gpio::A::new(&mut rcc.ahb);
-    let mut gpioc = gpio::C::new(&mut rcc.ahb);
+//   let cfgr = rcc.cfgr.sysclk(clocking::SysClkSource::MSI(clocking::MediumSpeedInternalRC::new(32_000_000, false))).hclk(MegaHertz(32)).pclk1(MegaHertz(32)).pclk2(MegaHertz(32));
+;
+//    let spiclocks = cfgr.freeze(&mut flash.acr);
 
 
-    let mut _timer: Timer<TIM6> = stm32l4x6_hal::timer::Timer::tim6(p.TIM6,Hertz(20), spiclocks, &mut rcc.apb1);
-    let mut led0_red: PA0<gpio::Output<gpio::PushPull>> = gpioa.PA0.into_output(&mut gpioa.moder, &mut gpioa.otyper);
-    let mut led1_red: PA1<gpio::Output<gpio::PushPull>> = gpioa.PA1.into_output(&mut gpioa.moder, &mut gpioa.otyper);
-    let mut led2_green: PC1<gpio::Output<gpio::PushPull>> = gpioc.PC1.into_output(&mut gpioc.moder, &mut gpioc.otyper);
-    let mut led3_green: PC0<gpio::Output<gpio::PushPull>> = gpioc.PC0.into_output(&mut gpioc.moder, &mut gpioc.otyper);
 
-    let spiclk:PA5<gpio::AF5> = gpioa.PA5.into_alt_fun(&mut gpioa.moder, &mut gpioa.afrl);
-    let spimiso:PA6<gpio::AF5> = gpioa.PA6.into_alt_fun(&mut gpioa.moder, &mut gpioa.afrl);
-    let spimosi:PA7<gpio::AF5> = gpioa.PA7.into_alt_fun(&mut gpioa.moder, &mut gpioa.afrl);
 
-    let spifreq= stm32l4x6_hal::time::Hertz(2_000_000);
 
-    let     spi = spi::Spi::new(spi1,(spiclk,spimiso,spimosi),spifreq,embedded_hal::spi::MODE_0,&spiclocks,&mut rcc.apb2);
+//    let mut _timer: Timer<TIM6> = nrf52_hal::timer::Timer::tim6(p.TIM6,Hertz(20), spiclocks, &mut rcc.apb1);
+    let mut led0_red: P0_20<gpio::Output<PushPull>>  = port0.p0_20.into_push_pull_output(Level::Low );
+//Gpio Conflict
+//   let mut led1_red: P0_19<gpio::Output<gpio::PushPull>>  = port0.p0_19.into_push_pull_output(Level::Low );
+    let mut led2_green: P0_18<gpio::Output<PushPull>>  = port0.p0_18.into_push_pull_output(Level::Low );
+    let mut led3_green: P0_17<gpio::Output<PushPull>>  = port0.p0_17.into_push_pull_output(Level::Low );
+    let mut led1_red: P0_03<gpio::Output<PushPull>>  = port0.p0_03.into_push_pull_output(Level::Low );
 
-    let     btn1:      PC13<gpio::Input<gpio::Floating>> = gpioc.PC13.into_input(&mut gpioc.moder, &mut gpioc.pupdr);
-    let     spi_irq:   PA4<gpio::Input<gpio::Floating>> =  gpioa.PA4.into_input(&mut gpioa.moder, &mut gpioa.pupdr);
-    let mut spi_reset: PA10<gpio::Output<gpio::PushPull>> = gpioa.PA10.into_output(&mut gpioa.moder, &mut gpioa.otyper);
-    let mut spi_cs:    PA9<gpio::Output<gpio::PushPull>> =  gpioa.PA9.into_output(&mut gpioa.moder, &mut gpioa.otyper);
+    //arduino D13,D12,D11
+    let spiclk:  P0_Pin<Output<PushPull>> = port0.p0_25.into_push_pull_output(Level::Low).degrade();
+    let spimosi: P0_Pin<Output<PushPull>> = port0.p0_23.into_push_pull_output(Level::Low).degrade();
+    let spimiso: P0_Pin<Input<Floating>>  = port0.p0_24.into_floating_input().degrade();
+
+//    let spifreq= nrf52_hal::time::Hertz(2_000_000);
+
+    let pins = nrf52832_hal::spim::Pins{sck:spiclk,miso:spimiso,mosi:spimosi};
+    let mut spi0 = p.SPIM0.constrain(pins);
+
+
+    let btn1  = port0.p0_13.into_floating_input();
+    let btn2  = port0.p0_14.into_floating_input();
+    let btn3  = port0.p0_15.into_floating_input();
+    let btn4  = port0.p0_16.into_floating_input();
+//    let     spi_irq:   PA4<gpio::Input<gpio::Floating>> =  gpioa.PA4.into_input(&mut gpioa.moder, &mut gpioa.pupdr);
+    //D2
+//    let mut spi_reset: P0_13<gpio::Output<PushPull>>  = port0.p0_13.into_push_pull_output(Level::Low );
+    //D8
+    let mut spi_cs = port0.p0_19.into_push_pull_output(Level::High ).degrade();
+
+    //A2 p28
+    let     spi_irq = port0.p0_28.into_floating_input();
     spi_cs.set_high();
-    spi_reset.set_high();
+//    spi_reset.set_high();
 
+    let mut ans: [u8;1024] = [0; 1024] ;
+    let mut i=0;
+    loop{
+        if i > 1000 {
+            i = 0;
+        }
+        ans[i] = 0x73; i += 1;
+        ans[i] = 0x53; i += 1;
+        ans[i] = 0x73; i += 1;
+        ans[i] = 0x73; i += 1;
 
-    use embedded_hal::digital::InputPin;
+        ans[i] = (i as u32>>8) as u8; i += 1;
+        ans[i] = i as u8; i += 1;
+        ans[i] = btn3.is_high() as u8; i += 1;
+        ans[i] = btn4.is_high() as u8; i += 1;
 
+        ans[i] = spi_irq.is_high() as u8; i += 1;
+        ans[i] = spi_irq.is_high() as u8; i += 1;
+        let tx =     [0xFC,0,0];
+        let mut rx = [0,0,0];
+        let _ = spi0.read(&mut spi_cs,&tx,&mut rx);
+
+        let tx =     [0xF8,0];
+        let mut rx = [0,0];
+        let _ = spi0.read(&mut spi_cs,&tx,&mut rx);
+        ans[i] = spi_irq.is_high() as u8; i += 1;
+        ans[i] = spi_irq.is_high() as u8; i += 1;
+        ans[i] = spi_irq.is_high() as u8; i += 1;
+
+        let tx =     [0x1C,0];
+        let mut rx = [0,0];
+        let _ = spi0.read(&mut spi_cs,&tx,&mut rx);
+        ans[i] = spi_irq.is_high() as u8; i += 1;
+        ans[i] = spi_irq.is_high() as u8; i += 1;
+        ans[i] = spi_irq.is_high() as u8; i += 1;
+
+    }
+
+/*
     let mut bm = BmLite::new(spi,spi_cs,spi_reset,spi_irq);
     let _ans = bm.reset();
     led0_red.set_high();
@@ -165,6 +216,11 @@ fn main() -> ! {
             }
         }
     }
+*/
+loop{
+      led2_green.set_high();
+      led3_green.set_high();
+}
 }
 // required: define how Out Of Memory (OOM) conditions should be handled
 // *if* no other crate has already defined `oom`
