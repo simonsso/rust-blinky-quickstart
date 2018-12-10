@@ -20,13 +20,13 @@ features = ["unproven"]
 version = "0.2"
 
 [dependencies.bmlite]
-path = "/home/simson/work/work48"
+path = "../lite"
 default-features = false
 
 [dependencies.stm32l4x6-hal]
 features = ["rt"]
-#git = "https://github.com/simonsso/stm32l4x6_hal.git"
-path = "/home/simson/rustlib/stm32l4x6_hal"
+git = "https://github.com/simonsso/stm32l4x6_hal.git"
+#path = "/home/simson/rustlib/stm32l4x6_hal"
 #path = "../stm32l4x6_hal"
 
 
