@@ -20,7 +20,10 @@ features = ["unproven"]
 version = "0.2"
 
 [dependencies.nrf52832-hal]
-path = "/home/simson/rustlib/nrf52-hal/nrf52832-hal"
+# git = " https://github.com/simonsso/nrf52-hal/"
+# branch = "conservative-fences"
+path = "../nrf52-hal/nrf52832-hal/"
+## nrf52832-hal"
 #version  = "0.6.0-beta.4"
 
 [dependencies.crc]
