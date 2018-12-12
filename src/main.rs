@@ -91,7 +91,8 @@ fn main() -> ! {
 //    let spifreq= nrf52_hal::time::Hertz(2_000_000);
 
     let pins = nrf52832_hal::spim::Pins{sck:spiclk,miso:spimiso,mosi:spimosi};
-    let mut spim: embedded_hal::spi::FullDuplex<Error> = p.SPIM0.constrain(pins);
+//    let mut spim:<nrf52832_hal::Spim as FullDuplex<u8>> = p.SPIM0.constrain(pins);
+    let mut spim = p.SPIM0.constrain(pins);
 
     let mut spi_cs = port0.p0_19.into_push_pull_output(Level::High ).degrade();
     let mut spi_rst = port0.p0_13.into_push_pull_output(Level::High );
@@ -104,15 +105,14 @@ fn main() -> ! {
     let btn3  = port0.p0_15.into_pullup_input();
     let btn4  = port0.p0_16.into_pullup_input();
 
-   
-    let mut txbuf:[u8;2] = [0x1c,00];
-    let mut rxbuf:[u8;2] = [0 ,0];
+        let mut txbuf:[u8;2] = [0x1c,00];
+        let mut rxbuf:[u8;2] = [0 ,0];
 
-    for i in 0..2 {
-        let _ans=block!(spim.send(txbuf[i]));
-        let ans:u8 = block!(spim.read()).unwrap();
-        rxbuf[i];
-    }
+        for i in 0..2 {
+            let _ans=block!(spim.send(txbuf[i]));
+            let ans:u8 = block!(FullDuplex::read(&mut spim)).unwrap();
+            rxbuf[i];
+        }
 
 
     //let mut txbuf:[u8;3] = [0xfc,00,00];
