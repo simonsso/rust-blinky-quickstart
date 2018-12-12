@@ -8,7 +8,6 @@
 
 // Plug in the allocator crate
 extern crate alloc;
-extern crate nb;
 //extern crate alloc_cortex_m;
 use core::alloc::Layout;
 
@@ -17,7 +16,6 @@ extern crate cortex_m_rt as rt; // v0.5.x
 // use alloc::vec::Vec;
 use alloc_cortex_m::CortexMHeap;
 
-#[macro_use(block)]
 #[global_allocator]
 static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
 
@@ -29,6 +27,10 @@ extern crate panic_halt; // you can put a breakpoint on `rust_begin_unwind` to c
 // extern crate panic_itm; // logs messages over ITM; requires ITM support
 // extern crate panic_semihosting; // logs messages to the host stderr; requires a debugger
 extern crate nrf52832_hal;
+extern crate bmlite;
+use bmlite::*;
+
+extern crate nb;
 
 use cortex_m_rt::entry;
 
@@ -59,26 +61,12 @@ use cortex_m::asm::delay;
 fn main() -> ! {
 
     let p = nrf52832_hal::nrf52832_pac::Peripherals::take().unwrap();
-//    let mut rcc = p.RCC.constrain();
     let port0 = p.P0.split();
 
-    // Use SRAM2 for heap ans SRAM1 for stack
-    // Todo use p this is hard coded from STM32L476RG memorymap
-//    unsafe { ALLOCATOR.init(0x1000_0000 as usize, 0x8000 as usize) }
-//    let mut flash = p.FLASH.constrain();
+    unsafe { ALLOCATOR.init(0x2000_0000 as usize, 0x1000 as usize) }
 
-
-//   let cfgr = rcc.cfgr.sysclk(clocking::SysClkSource::MSI(clocking::MediumSpeedInternalRC::new(32_000_000, false))).hclk(MegaHertz(32)).pclk1(MegaHertz(32)).pclk2(MegaHertz(32));
-;
-//    let spiclocks = cfgr.freeze(&mut flash.acr);
-
-
-
-
-
-//    let mut _timer: Timer<TIM6> = nrf52_hal::timer::Timer::tim6(p.TIM6,Hertz(20), spiclocks, &mut rcc.apb1);
     let mut led0_red: P0_20<gpio::Output<PushPull>>  = port0.p0_20.into_push_pull_output(Level::Low );
-//Gpio Conflict
+//Gpio Conflict @pin19
     let mut led2_green: P0_18<gpio::Output<PushPull>>  = port0.p0_18.into_push_pull_output(Level::Low );
     let mut led3_green: P0_17<gpio::Output<PushPull>>  = port0.p0_17.into_push_pull_output(Level::Low );
     let mut led1_red: P0_03<gpio::Output<PushPull>>  = port0.p0_03.into_push_pull_output(Level::Low );
@@ -88,69 +76,90 @@ fn main() -> ! {
     let spimosi: P0_Pin<Output<PushPull>> = port0.p0_23.into_push_pull_output(Level::Low).degrade();
     let spimiso: P0_Pin<Input<Floating>>  = port0.p0_24.into_floating_input().degrade();
 
-//    let spifreq= nrf52_hal::time::Hertz(2_000_000);
 
     let pins = nrf52832_hal::spim::Pins{sck:spiclk,miso:spimiso,mosi:spimosi};
-//    let mut spim:<nrf52832_hal::Spim as FullDuplex<u8>> = p.SPIM0.constrain(pins);
-    let mut spim = p.SPIM0.constrain(pins);
+    let mut spi = p.SPIM0.constrain(pins);
 
     let mut spi_cs = port0.p0_19.into_push_pull_output(Level::High ).degrade();
     let mut spi_rst = port0.p0_13.into_push_pull_output(Level::High );
+    let spi_irq = port0.p0_28.into_floating_input();
     spi_rst.set_low();
     delay(10);
     spi_rst.set_high();
 
 //    let btn1  = port0.p0_13.into_pullup_input();
-    let btn2  = port0.p0_14.into_pullup_input();
-    let btn3  = port0.p0_15.into_pullup_input();
-    let btn4  = port0.p0_16.into_pullup_input();
+//    let btn2  = port0.p0_14.into_pullup_input();
+//   let btn3  = port0.p0_15.into_pullup_input();
+    //use btn4 as btn
+    let btn1  = port0.p0_16.into_pullup_input();
 
-        let mut txbuf:[u8;2] = [0x1c,00];
-        let mut rxbuf:[u8;2] = [0 ,0];
+    use embedded_hal::digital::InputPin;
 
-        for i in 0..2 {
-            let _ans=block!(spim.send(txbuf[i]));
-            let ans:u8 = block!(FullDuplex::read(&mut spim)).unwrap();
-            rxbuf[i];
-        }
+    let mut bm = BmLite::new(spi, spi_cs,spi_rst,spi_irq);
+    let _ans = bm.reset();
 
+    led0_red.set_high();
+    led1_red.set_high();
+    led2_green.set_high();
+    led3_green.set_high();
+    led0_red.set_low();
+    led1_red.set_low();
+    led2_green.set_low();
+    led3_green.set_low();
 
-    //let mut txbuf:[u8;3] = [0xfc,00,00];
-    // let mut rxbuf:[u8;3] = [0 ,0,0];
-
-    
-    loop{
-        led0_red.set_high();
-        delay(1000000);
-        led0_red.set_low();
-        delay(1000000);
-/*
-        led1_red.set_high();
-        led2_green.set_high();
-        led3_green.set_high();
-        led1_red.set_low();
-        led2_green.set_low();
-        led3_green.set_low();
-        if btn1.is_high(){
-            led0_red.set_high();
+    loop {
+        let ans = bm.capture(0);
+        match ans {
+            Ok(_) => {},
+            Err(_) => {
+                led1_red.set_high();
+                let _ans = bm.reset();
+            },
+        } // The user interface touch the sensor and btn at the same time to ensoll
+          // Extreemly secure
+        if btn1.is_low(){
+                led0_red.set_high();
+                led1_red.set_high();
+                led2_green.set_high();
+                led3_green.set_high();
+                // let _ans = bm.delete_all();
+                let ans = bm.enroll();
+                match ans {
+                    Ok(_) => {
+                        led0_red.set_low();
+                        led1_red.set_low();
+                        led2_green.set_low();
+                        led3_green.set_low();
+                        led3_green.set_high();
+                    },
+                    Err(_) => loop{
+                        led0_red.set_low();
+                        led1_red.set_low();
+                        led2_green.set_low();
+                        led3_green.set_low();
+                        led0_red.set_high();
+                        led1_red.set_high();
+                    },
+                }
         }else{
             led0_red.set_low();
-        }
-*/
-        if btn2.is_high(){
-            led1_red.set_high();
-        }else{
             led1_red.set_low();
-        }
-        if btn3.is_high(){
-            led2_green.set_high();
-        }else{
             led2_green.set_low();
-        }
-        if btn4.is_high(){
-            led3_green.set_high();
-        }else{
             led3_green.set_low();
+            let ans= bm.identify();
+            match ans {
+                Ok(id) => {
+                    match id{
+                        0 => {led2_green.set_high()}
+                        1 => {led3_green.set_high()}
+                        2 => {led3_green.set_high();led2_green.set_high()}
+                        _ => {}
+                     }
+                     delay(5000000);
+                }
+                Err(bmlite::Error::NoMatch) => {led0_red.set_high()}
+                Err(_) => {let _ans=bm.reset();}
+            }
         }
     }
 }
