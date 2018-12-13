@@ -20,7 +20,8 @@ features = ["unproven"]
 version = "0.2"
 
 [dependencies.bmlite]
-path = "/home/simson/work/work48"
+# git = "https://github.com/simonsso/lite.git"
+path = "../lite"
 default-features = false
 
 [dependencies.nrf52832-hal]
@@ -46,7 +47,7 @@ debug = true # symbols are nice and they don't increase the size on Flash
 lto = true # better optimizations
 
 [profile.dev]
-opt-level = 3
+opt-level = 0
 # codegen-units = 1 # better optimizations
 debug = true # symbols are nice and they don't increase the size on Flash
 

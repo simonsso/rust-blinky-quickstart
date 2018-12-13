@@ -63,7 +63,7 @@ fn main() -> ! {
     let p = nrf52832_hal::nrf52832_pac::Peripherals::take().unwrap();
     let port0 = p.P0.split();
 
-    unsafe { ALLOCATOR.init(0x2000_0000 as usize, 0x1000 as usize) }
+    unsafe { ALLOCATOR.init(0x20000000 as usize, 0x4000 as usize) }
 
     let mut led0_red: P0_20<gpio::Output<PushPull>>  = port0.p0_20.into_push_pull_output(Level::Low );
 //Gpio Conflict @pin19
@@ -91,21 +91,12 @@ fn main() -> ! {
 //    let btn2  = port0.p0_14.into_pullup_input();
 //   let btn3  = port0.p0_15.into_pullup_input();
     //use btn4 as btn
-    let btn1  = port0.p0_16.into_pullup_input();
+    let btn4  = port0.p0_16.into_pullup_input();
 
     use embedded_hal::digital::InputPin;
 
     let mut bm = BmLite::new(spi, spi_cs,spi_rst,spi_irq);
     let _ans = bm.reset();
-
-    led0_red.set_high();
-    led1_red.set_high();
-    led2_green.set_high();
-    led3_green.set_high();
-    led0_red.set_low();
-    led1_red.set_low();
-    led2_green.set_low();
-    led3_green.set_low();
 
     loop {
         let ans = bm.capture(0);
@@ -113,16 +104,16 @@ fn main() -> ! {
             Ok(_) => {},
             Err(_) => {
                 led1_red.set_high();
-                let _ans = bm.reset();
+                // let _ans = bm.reset();
             },
         } // The user interface touch the sensor and btn at the same time to ensoll
           // Extreemly secure
-        if btn1.is_low(){
+        if btn4.is_low(){
                 led0_red.set_high();
                 led1_red.set_high();
                 led2_green.set_high();
                 led3_green.set_high();
-                // let _ans = bm.delete_all();
+                let _ans = bm.delete_all();
                 let ans = bm.enroll();
                 match ans {
                     Ok(_) => {
@@ -158,7 +149,7 @@ fn main() -> ! {
                      delay(5000000);
                 }
                 Err(bmlite::Error::NoMatch) => {led0_red.set_high()}
-                Err(_) => {let _ans=bm.reset();}
+                Err(_) => {/*let _ans=bm.reset();*/}
             }
         }
     }
