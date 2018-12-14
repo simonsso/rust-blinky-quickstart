@@ -20,8 +20,7 @@ features = ["unproven"]
 version = "0.2"
 
 [dependencies.bmlite]
-# git = "https://github.com/simonsso/lite.git"
-path = "../lite"
+path = "/home/simson/work/work48"
 default-features = false
 
 [dependencies.nrf52832-hal]
