@@ -63,7 +63,7 @@ fn main() -> ! {
     let p = nrf52832_hal::nrf52832_pac::Peripherals::take().unwrap();
     let port0 = p.P0.split();
 
-    unsafe { ALLOCATOR.init(0x20000000 as usize, 0x4000 as usize) }
+    unsafe { ALLOCATOR.init(cortex_m_rt::heap_start() as usize, 2048 as usize) }
 
     let mut led0_red: P0_20<gpio::Output<PushPull>>  = port0.p0_20.into_push_pull_output(Level::Low );
 //Gpio Conflict @pin19
