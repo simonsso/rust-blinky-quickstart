@@ -40,7 +40,6 @@ use nrf52832_hal::gpio::p0::*;
 use nrf52832_hal::prelude::GpioExt;
 use nrf52832_hal::prelude::SpimExt;
 use embedded_hal::digital::{InputPin,OutputPin};
-use embedded_hal::spi::FullDuplex;
 
 // use nrf52_hal::spi;
 // use nrf52_hal::embedded_hal::digital::OutputPin;
@@ -48,14 +47,7 @@ use embedded_hal::spi::FullDuplex;
 // use nrf52_hal::time::{MegaHertz,Hertz};
 // use nrf52_hal::timer::*;
 use nrf52832_hal::*;
-use nb::*;
-
-// use nrf52::TIM6;
-
-// use nrf52_hal::common::Constrain;
 use cortex_m::asm::delay;
-
-
 
 #[entry]
 fn main() -> ! {
@@ -66,7 +58,7 @@ fn main() -> ! {
     unsafe { ALLOCATOR.init(cortex_m_rt::heap_start() as usize, 2048 as usize) }
 
     let mut led0_red: P0_20<gpio::Output<PushPull>>  = port0.p0_20.into_push_pull_output(Level::Low );
-//Gpio Conflict @pin19
+    //Gpio Conflict @pin19
     let mut led2_green: P0_18<gpio::Output<PushPull>>  = port0.p0_18.into_push_pull_output(Level::Low );
     let mut led3_green: P0_17<gpio::Output<PushPull>>  = port0.p0_17.into_push_pull_output(Level::Low );
     let mut led1_red: P0_03<gpio::Output<PushPull>>  = port0.p0_03.into_push_pull_output(Level::Low );
@@ -78,9 +70,9 @@ fn main() -> ! {
 
 
     let pins = nrf52832_hal::spim::Pins{sck:spiclk,miso:spimiso,mosi:spimosi};
-    let mut spi = p.SPIM0.constrain(pins);
+    let spi = p.SPIM0.constrain(pins);
 
-    let mut spi_cs = port0.p0_19.into_push_pull_output(Level::High ).degrade();
+    let spi_cs = port0.p0_19.into_push_pull_output(Level::High ).degrade();
     let mut spi_rst = port0.p0_13.into_push_pull_output(Level::High );
     let spi_irq = port0.p0_28.into_floating_input();
     spi_rst.set_low();
@@ -89,14 +81,11 @@ fn main() -> ! {
 
 //    let btn1  = port0.p0_13.into_pullup_input();
 //    let btn2  = port0.p0_14.into_pullup_input();
-//   let btn3  = port0.p0_15.into_pullup_input();
-    //use btn4 as btn
+//    let btn3  = port0.p0_15.into_pullup_input();
     let btn4  = port0.p0_16.into_pullup_input();
 
-    use embedded_hal::digital::InputPin;
-
     let mut bm = BmLite::new(spi, spi_cs,spi_rst,spi_irq);
-    let _ans = bm.reset();
+    let _ans = bm.reset(||{delay(100)});
 
     loop {
         let ans = bm.capture(0);
@@ -114,7 +103,7 @@ fn main() -> ! {
                 led2_green.set_high();
                 led3_green.set_high();
                 let _ans = bm.delete_all();
-                let ans = bm.enroll();
+                let ans = bm.enroll(|_|{});
                 match ans {
                     Ok(_) => {
                         led0_red.set_low();

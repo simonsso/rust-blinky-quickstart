@@ -12,8 +12,6 @@ cortex-m-rt = "0.6.5"
 cortex-m-semihosting = "0.3.2"
 panic-halt = "0.2.0"
 nb = "0.1.1"
-# nrf52-hal = "0.0.1"
-# nrf52 = "0.4.0"
 
 [dependencies.embedded-hal]
 features = ["unproven"]
@@ -21,14 +19,15 @@ version = "0.2"
 
 [dependencies.bmlite]
 path = "/home/simson/work/work48"
+# git = " https://github.com/simonsso/lite"
 default-features = false
 
 [dependencies.nrf52832-hal]
+# version = "0.6.0"
 # git = " https://github.com/simonsso/nrf52-hal/"
-# branch = "conservative-fences"
+# branch = "spim_dev"
 path = "/home/simson/rustlib/nrf52-hal/nrf52832-hal/"
-## nrf52832-hal"
-#version  = "0.6.0-beta.4"
+
 
 [dependencies.crc]
 version = "^1.0.0"
